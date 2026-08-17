@@ -6,11 +6,39 @@ the master build prompt's "Deliverables per phase".
 
 ## Current phase
 
-**Phase 3 — Agent Runtime** delivered; **Phases 1–2** complete.
+**Phase 4 — Tool Runtime** delivered; **Phases 1–3** complete.
 
 Phase 0 (Specification) is complete and lives in the Forge specification workspace
-(mirrored conceptually in `docs/`). The repository was previously empty, so this is the
-first implementation slice.
+(mirrored conceptually in `docs/`).
+
+## Phase 4 — Tool Runtime
+
+| Build-order item (Phase 4) | Status | Notes |
+| --- | --- | --- |
+| Tool registry | ✅ | Declarative `ToolSpec` contract + catalog; 12 built-in tools registered and queryable via the catalog API. |
+| Filesystem tool | ✅ | `fs.read`/`fs.write`/`fs.list`/`fs.delete`, jailed to the project workspace root; `fs.delete` is destructive (approval-gated). |
+| Terminal tool | ✅ | `terminal.run`: argv allow-list, `shell=False`, scrubbed env, timeout, cwd-confined. |
+| Git tool | ✅ | `git`: curated **offline** subcommand set with a pinned commit identity; network subcommands refused. |
+| Package tool | ✅ | `package.install` (pip/npm) — runnable but **egress-gated**: refused until a host allow-list is granted. |
+| HTTP/search tools | ✅ | `http.request` via a deny-by-default egress allow-list; `search.web` declared with a provider seam (configured in Phase 6/9). |
+| Database tool | ✅ | `db.query` (read-only) + `db.execute` (destructive, approval-gated) against a project-local SQLite target. |
+| Browser tool | ✅ (declared) | `browser.navigate` is a declared contract with `handler=None`; the real browser engine is Phase 15. |
+| Tool auditing | ✅ | Every call (including denials) → durable `ToolInvocation` + `AuditEvent`; argument metadata redacted, values truncated. |
+
+All enforcement runs through one path (`ToolRuntime.invoke`): **deny-by-default**
+authorization (project grant **and**, for agents, least-privilege `allowed_tools`), input
+schema validation, an **approval gate** for destructive tools, execution inside a
+**controlled environment** (filesystem jail + egress policy), and output schema validation.
+Agents (Phase 3) receive a runtime and call tools via `ctx.call_tool(...)`. Migration
+`0004_tool_runtime` is reversible (ADR-0006).
+
+**Known Phase 4 limitations:** the `LocalWorkspaceEnvironment` jails tool *filesystem*
+operations and controls *egress*, but does not fully isolate a spawned subprocess — so
+command execution (`terminal`/`git`/`package`) is **disabled outside `local`/`development`**
+until the container sandbox (Phase 5) implements the same `ExecutionEnvironment` interface.
+`browser.navigate` is inert until Phase 15; `search.web` has no provider until Phase 6/9;
+`db.*` targets project-local SQLite (richer targets arrive with the sandbox). Tool budget
+accounting is wired but nominal until the cost/model runtime (Phases 10/15/20).
 
 ## Phase 3 — Agent Runtime
 
@@ -83,18 +111,21 @@ projects, ADR-0002), **auditability** (atomic `AuditEvent` trail with correlatio
 
 ## Acceptance evidence
 
-- **Backend tests:** `cd backend && pytest` → **70 passed** (35 foundation + 20
-  durable-execution + 15 agent-runtime). Adds: agent catalog, schema-validated agent I/O,
-  context assembly with upstream outputs, budget enforcement, verification contracts,
-  durable `AgentExecution` recording, spec-only-agent honest failure, and the catalog +
-  executions API.
+- **Backend tests:** `cd backend && pytest` → **98 passed** (35 foundation + 20
+  durable-execution + 15 agent-runtime + 28 tool-runtime). The tool-runtime tests cover:
+  deny-by-default authorization, the filesystem jail (path-escape refusal), input/output
+  schema validation, the destructive-op approval gate (and `auto_approve` grants),
+  read/write SQLite tools, HTTP egress control (denied by default; allowed for an
+  allow-listed host, exercised against a local server), the terminal allow-list, offline
+  `git`, egress-gated package installs, honest failures for `search`/`browser`, argument
+  redaction + audit recording, and the agent↔tool least-privilege integration end-to-end.
 - **Lint:** `ruff check` → clean.
 - **Migrations:** `alembic upgrade head` and `alembic downgrade base` succeed across all
-  three migrations on a fresh database (reversible).
-- **Frontend:** `npm run build` → type-checks and builds (0 errors).
-- **End-to-end:** Phase 1 UI via Playwright; Phase 2 run drained by a standalone worker;
-  Phase 3 an agent task executed by the standalone worker with a recorded, verified
-  `AgentExecution`. Screenshots in [`docs/screenshots/`](screenshots/).
+  four migrations on a fresh database (reversible).
+- **Frontend:** unchanged this phase; `npm run build` still type-checks and builds.
+- **End-to-end:** Phase 4 an agent (`example.fs_roundtrip`) drained by a standalone worker
+  wrote and read a file through the tool runtime under least privilege, producing two
+  durable, audited `ToolInvocation` rows tied to the run/task/agent.
 
 ## Known limitations
 
@@ -114,7 +145,8 @@ projects, ADR-0002), **auditability** (atomic `AuditEvent` trail with correlatio
 
 ## Next phase
 
-**Phase 4 — Tool Runtime**: the tool contract + registry, and controlled
-filesystem/terminal/git/package/HTTP/browser tools with least-privilege permissions and
-structured audit events — the capabilities agents (Phase 3) are allowed to use, executed
-inside the sandbox (Phase 5).
+**Phase 5 — Sandbox**: a container-backed `ExecutionEnvironment` implementing the Phase 4
+tool seam, with container lifecycle, resource limits, a real network policy, a secret
+broker, per-project workspace isolation, and snapshot/reset — so command-spawning tools
+(`terminal`/`git`/`package`) and richer database/browser targets run under full isolation
+rather than the local workspace environment.

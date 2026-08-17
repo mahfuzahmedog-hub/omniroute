@@ -16,6 +16,9 @@ htmlcov/
 dist/
 build/
 
+# Forge tool workspaces (per-project sandboxes)
+forge-workspaces/
+
 # Node / frontend
 node_modules/
 frontend/dist/
