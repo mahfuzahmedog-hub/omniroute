@@ -163,6 +163,11 @@ def run_forever(session_factory: Callable[[], Session]) -> None:  # pragma: no c
     """Entrypoint for a standalone worker process."""
     import time
 
+    # Wire runnable agents (Phase 3) in as task kinds on the default registry.
+    from forge.agents.runner import register_agents
+
+    register_agents()
+
     worker = Worker(session_factory)
     logger.info("worker_start", extra={"extra": {"worker_id": worker.worker_id}})
     db = session_factory()
@@ -176,8 +181,11 @@ def run_forever(session_factory: Callable[[], Session]) -> None:  # pragma: no c
 
 
 if __name__ == "__main__":  # pragma: no cover
+    # Import from the canonical module path (not the __main__ copy created by `-m`) so the
+    # worker and register_agents() share the same handler registry object.
     from forge.db import SessionLocal
     from forge.logging import configure_logging
+    from forge.orchestration.worker import run_forever as _run_forever
 
     configure_logging()
-    run_forever(SessionLocal)
+    _run_forever(SessionLocal)

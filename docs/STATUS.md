@@ -6,13 +6,37 @@ the master build prompt's "Deliverables per phase".
 
 ## Current phase
 
-**Phase 2 — Durable Execution** delivered (backend/engine); **Phase 1 — Foundation** complete.
+**Phase 3 — Agent Runtime** delivered; **Phases 1–2** complete.
 
 Phase 0 (Specification) is complete and lives in the Forge specification workspace
 (mirrored conceptually in `docs/`). The repository was previously empty, so this is the
 first implementation slice.
 
+## Phase 3 — Agent Runtime
+
+| Build-order item (Phase 3) | Status | Notes |
+| --- | --- | --- |
+| Agent contract | ✅ | Frozen `Agent` dataclass: identity/role/objective, I/O JSON schemas, tools, model policy, budget, timeout, retry, escalation, verifier. |
+| Agent registry | ✅ | Catalog of agents; initial 17-agent roster registered as declared specs + runnable examples. |
+| Agent lifecycle | ✅ | `AgentStatus` (created→…→verifying→succeeded/failed/cancelled); every attempt recorded as a durable `AgentExecution`. |
+| Context assembly | ✅ | Focused bundle: project goal, run, task inputs, direct-dependency outputs, recent failure signals (isolation, not whole-repo dumps). |
+| Agent permissions | ✅ | Per-agent least-privilege `allowed_tools` set (enforced when the tool runtime lands in Phase 4). |
+| Agent budgets | ✅ | `AgentBudget` (usd/tokens/seconds); `record_usage` raises `BudgetExceeded` mid-run. |
+| Verification contracts | ✅ | Output JSON-Schema check + custom checks; completion requires outputs exist **and** verification passes. |
+
+Agents execute **as task kinds on the Phase 2 durable queue** (ADR-0005), so retries,
+dead-lettering, leases, and cancellation apply unchanged. Migration `0003_agent_executions`
+is reversible.
+
+**Known Phase 3 limitations:** the roster agents are declared contracts with no executor
+yet (they fail loudly if invoked) — the executable agents are deterministic *examples*
+used to exercise the framework; model-backed execution arrives with the model runtime
+(Phases 10/13). Timeouts are recorded but not yet hard-enforced. Tool permissions are
+declared but unenforced until Phase 4.
+
 ## Phase 2 — Durable Execution
+
+
 
 | Build-order item (Phase 2) | Status | Notes |
 | --- | --- | --- |
@@ -59,19 +83,18 @@ projects, ADR-0002), **auditability** (atomic `AuditEvent` trail with correlatio
 
 ## Acceptance evidence
 
-- **Backend tests:** `cd backend && pytest` → **55 passed** (35 foundation + 20
-  durable-execution). Covers health, auth (success + failure paths), workspace RBAC,
-  project CRUD, workspace isolation, pagination, optimistic-concurrency conflict, the
-  error envelope, the audit trail, state-machine transitions, dependency gating, lease
-  claim exclusivity, retry→backoff→dead-letter, crash recovery via lease reaping,
-  cancellation propagation, and resume-after-restart.
+- **Backend tests:** `cd backend && pytest` → **70 passed** (35 foundation + 20
+  durable-execution + 15 agent-runtime). Adds: agent catalog, schema-validated agent I/O,
+  context assembly with upstream outputs, budget enforcement, verification contracts,
+  durable `AgentExecution` recording, spec-only-agent honest failure, and the catalog +
+  executions API.
 - **Lint:** `ruff check` → clean.
-- **Migrations:** `alembic upgrade head` and `alembic downgrade base` succeed across both
-  migrations on a fresh database (reversible).
+- **Migrations:** `alembic upgrade head` and `alembic downgrade base` succeed across all
+  three migrations on a fresh database (reversible).
 - **Frontend:** `npm run build` → type-checks and builds (0 errors).
-- **End-to-end:** live uvicorn + Vite dev server exercised via Playwright (Phase 1 UI);
-  live API + standalone worker process draining a dependency-gated run to `succeeded`
-  (Phase 2). Screenshots in [`docs/screenshots/`](screenshots/).
+- **End-to-end:** Phase 1 UI via Playwright; Phase 2 run drained by a standalone worker;
+  Phase 3 an agent task executed by the standalone worker with a recorded, verified
+  `AgentExecution`. Screenshots in [`docs/screenshots/`](screenshots/).
 
 ## Known limitations
 
@@ -91,6 +114,7 @@ projects, ADR-0002), **auditability** (atomic `AuditEvent` trail with correlatio
 
 ## Next phase
 
-**Phase 3 — Agent Runtime**: the agent contract, registry, lifecycle, context assembly,
-per-agent permissions/budgets, and verification contracts — executed as task kinds on the
-durable queue built in Phase 2.
+**Phase 4 — Tool Runtime**: the tool contract + registry, and controlled
+filesystem/terminal/git/package/HTTP/browser tools with least-privilege permissions and
+structured audit events — the capabilities agents (Phase 3) are allowed to use, executed
+inside the sandbox (Phase 5).

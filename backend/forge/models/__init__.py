@@ -4,6 +4,7 @@ Importing this package imports every model so that ``Base.metadata`` is complete
 migrations and test schema creation.
 """
 
+from forge.models.agent_execution import AgentExecution, AgentStatus
 from forge.models.audit import AuditEvent
 from forge.models.base import Base
 from forge.models.project import Project, ProjectStatus
@@ -26,4 +27,6 @@ __all__ = [
     "Task",
     "TaskDependency",
     "TaskStatus",
+    "AgentExecution",
+    "AgentStatus",
 ]
