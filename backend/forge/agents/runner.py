@@ -26,7 +26,11 @@ def build_agent_handler(agent: Agent):
     def handler(task_ctx: TaskContext) -> dict:
         db = task_ctx.db
         task = task_ctx.task
-        ctx = assemble_context(db, agent, task)
+        # Give the agent a tool runtime so it can use its permitted capabilities. The
+        # runtime enforces least privilege and records durable, audited invocations.
+        from forge.tools.runtime import ToolRuntime
+
+        ctx = assemble_context(db, agent, task, tool_runtime=ToolRuntime(db))
 
         execution = AgentExecution(
             task_id=task.id,

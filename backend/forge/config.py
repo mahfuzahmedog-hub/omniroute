@@ -8,8 +8,10 @@ misconfigured deployment fails fast rather than at first use.
 
 from __future__ import annotations
 
+import tempfile
 from enum import StrEnum
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -56,7 +58,28 @@ class Settings(BaseSettings):
     # Observability
     log_level: str = "INFO"
 
+    # Tool runtime (Phase 4)
+    # Root directory under which each project gets an isolated, path-jailed workspace
+    # that tools operate within. The container-backed sandbox (Phase 5) will supersede
+    # this local environment for full process/network isolation.
+    workspaces_root: str = Field(
+        default_factory=lambda: str(Path(tempfile.gettempdir()) / "forge-workspaces")
+    )
+
+    # Sandbox backend selection (Phase 5): "auto" uses the container sandbox when a Docker
+    # daemon is reachable and falls back to the local workspace sandbox; "local"/"docker"
+    # force a specific backend.
+    sandbox_backend: str = "auto"
+
     _INSECURE_SECRET = "dev-only-insecure-secret-change-me"
+
+    @field_validator("sandbox_backend")
+    @classmethod
+    def _validate_sandbox_backend(cls, value: str) -> str:
+        allowed = {"auto", "local", "docker"}
+        if value not in allowed:
+            raise ValueError(f"sandbox_backend must be one of {sorted(allowed)}")
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -69,6 +92,18 @@ class Settings(BaseSettings):
     @property
     def is_sqlite(self) -> bool:
         return self.database_url.startswith("sqlite")
+
+    @property
+    def local_command_execution_enabled(self) -> bool:
+        """Whether tools may spawn subprocesses in the local workspace environment.
+
+        Command-spawning tools (terminal/git/package) require a *controlled* execution
+        environment. Full process isolation is the container sandbox (Phase 5). Until it
+        exists, we permit command execution only in ``local``/``development`` — where the
+        operator implicitly accepts an unisolated local workspace — and refuse it in
+        ``staging``/``production`` so unsafe host execution can never ship by default.
+        """
+        return self.environment in (Environment.local, Environment.development)
 
     def enforce_runtime_safety(self) -> None:
         """Fail fast when a non-local environment is dangerously misconfigured.

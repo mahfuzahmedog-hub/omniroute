@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from forge.api.routes import agents, auth, health, projects, runs, workspaces
+from forge.api.routes import agents, auth, health, projects, runs, tools, workspaces
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -18,3 +18,5 @@ api_router.include_router(projects.router)
 api_router.include_router(runs.router)
 api_router.include_router(agents.catalog_router)
 api_router.include_router(agents.executions_router)
+api_router.include_router(tools.catalog_router)
+api_router.include_router(tools.project_router)
