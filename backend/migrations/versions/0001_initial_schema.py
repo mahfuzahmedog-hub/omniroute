@@ -28,8 +28,8 @@ def upgrade() -> None:
     sa.Column('full_name', sa.String(length=255), nullable=True),
     sa.Column('is_active', sa.Boolean(), nullable=False),
     sa.Column('id', forge.db.GUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime, nullable=False),
+    sa.Column('updated_at', sa.DateTime, nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('users', schema=None) as batch_op:
@@ -39,8 +39,8 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('slug', sa.String(length=255), nullable=False),
     sa.Column('id', forge.db.GUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime, nullable=False),
+    sa.Column('updated_at', sa.DateTime, nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('workspaces', schema=None) as batch_op:
@@ -56,8 +56,8 @@ def upgrade() -> None:
     sa.Column('workspace_id', forge.db.GUID(), nullable=True),
     sa.Column('event_metadata', sa.JSON(), nullable=True),
     sa.Column('id', forge.db.GUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime, nullable=False),
+    sa.Column('updated_at', sa.DateTime, nullable=False),
     sa.ForeignKeyConstraint(['actor_user_id'], ['users.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
@@ -77,8 +77,8 @@ def upgrade() -> None:
     sa.Column('specification', sa.Text(), nullable=True),
     sa.Column('status', sa.Enum('draft', 'active', 'paused', 'archived', name='projectstatus', native_enum=False, length=32), nullable=False),
     sa.Column('id', forge.db.GUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime, nullable=False),
+    sa.Column('updated_at', sa.DateTime, nullable=False),
     sa.Column('version', sa.Integer(), nullable=False),
     sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
@@ -93,8 +93,8 @@ def upgrade() -> None:
     sa.Column('user_id', forge.db.GUID(), nullable=False),
     sa.Column('role', sa.Enum('owner', 'admin', 'member', 'viewer', name='workspacerole', native_enum=False, length=32), nullable=False),
     sa.Column('id', forge.db.GUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime, nullable=False),
+    sa.Column('updated_at', sa.DateTime, nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),

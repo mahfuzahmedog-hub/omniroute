@@ -70,3 +70,20 @@ def first_workspace_id(client: TestClient, token: str) -> str:
     workspaces = resp.json()
     assert workspaces, "expected a personal workspace"
     return workspaces[0]["id"]
+
+
+def seed_project(client: TestClient, email: str = "eng@example.com") -> dict[str, str]:
+    """Register a user and create a project; return token + workspace + project ids."""
+    token = register_user(client, email=email)["access_token"]
+    workspace_id = first_workspace_id(client, token)
+    resp = client.post(
+        f"/api/v1/workspaces/{workspace_id}/projects",
+        json={"name": "Engine", "slug": "engine"},
+        headers=auth_headers(token),
+    )
+    assert resp.status_code == 201, resp.text
+    return {
+        "token": token,
+        "workspace_id": workspace_id,
+        "project_id": resp.json()["id"],
+    }

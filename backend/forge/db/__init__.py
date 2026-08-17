@@ -75,4 +75,7 @@ def _make_engine(database_url: str) -> Engine:
 
 
 engine = _make_engine(get_settings().database_url)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+# autoflush=True (SQLAlchemy's default) so that queries observe pending changes made
+# earlier in the same transaction — the orchestration scheduler relies on this when it
+# gates dependent tasks on statuses it just updated.
+SessionLocal = sessionmaker(bind=engine, autoflush=True, autocommit=False, future=True)

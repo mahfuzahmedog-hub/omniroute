@@ -19,8 +19,14 @@ from forge.db import GUID
 
 
 def utcnow() -> datetime:
-    """Timezone-aware UTC now (portable default across SQLite/Postgres)."""
-    return datetime.now(UTC)
+    """Naive UTC now.
+
+    Forge stores all timestamps as naive UTC. This keeps datetime comparisons
+    (lease expiry, retry backoff) consistent across SQLite (which drops tzinfo) and
+    PostgreSQL, avoiding "offset-naive vs offset-aware" errors. By convention every
+    stored timestamp is UTC.
+    """
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Base(DeclarativeBase):
@@ -32,11 +38,9 @@ class UUIDMixin:
 
 
 class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+        DateTime, default=utcnow, onupdate=utcnow, nullable=False
     )
 
 
