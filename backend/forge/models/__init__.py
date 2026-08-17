@@ -1,0 +1,22 @@
+"""Model registry.
+
+Importing this package imports every model so that ``Base.metadata`` is complete for
+migrations and test schema creation.
+"""
+
+from forge.models.audit import AuditEvent
+from forge.models.base import Base
+from forge.models.project import Project, ProjectStatus
+from forge.models.user import User
+from forge.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
+
+__all__ = [
+    "Base",
+    "User",
+    "Workspace",
+    "WorkspaceMembership",
+    "WorkspaceRole",
+    "Project",
+    "ProjectStatus",
+    "AuditEvent",
+]
