@@ -23,7 +23,6 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 
 import jsonschema
 from sqlalchemy import select
@@ -46,7 +45,7 @@ from forge.tools.contract import (
 )
 from forge.tools.registry import ToolRegistry
 from forge.tools.registry import registry as default_registry
-from forge.tools.sandbox import EgressPolicy, ExecutionEnvironment, LocalWorkspaceEnvironment
+from forge.tools.sandbox import EgressPolicy, ExecutionEnvironment
 
 _MAX_STR = 200
 _MAX_ITEMS = 20
@@ -122,17 +121,18 @@ class ToolRuntime:
         self._settings = settings or get_settings()
 
     # -- environment -------------------------------------------------------
-    def _project_root(self, project_id: uuid.UUID) -> Path:
-        return Path(self._settings.workspaces_root) / str(project_id)
-
     def environment_for(
         self, project_id: uuid.UUID, *, egress: EgressPolicy | None = None
-    ) -> LocalWorkspaceEnvironment:
-        return LocalWorkspaceEnvironment(
-            self._project_root(project_id),
-            egress=egress,
-            commands_enabled=self._settings.local_command_execution_enabled,
-        )
+    ) -> ExecutionEnvironment:
+        """Return a ready execution environment via the Phase 5 sandbox provider.
+
+        Routing through the provider means tools run "inside a sandbox" (spec 06_TOOL_SYSTEM:
+        controlled environments) without the runtime knowing which backend — local workspace
+        or container — actually hosts them.
+        """
+        from forge.sandbox.provider import SandboxProvider
+
+        return SandboxProvider(self._settings).environment_for(project_id, egress=egress)
 
     # -- authorization -----------------------------------------------------
     def _grant(self, project_id: uuid.UUID, permission: str) -> ProjectToolGrant | None:

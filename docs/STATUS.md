@@ -6,10 +6,34 @@ the master build prompt's "Deliverables per phase".
 
 ## Current phase
 
-**Phase 4 — Tool Runtime** delivered; **Phases 1–3** complete.
+**Phase 5 — Sandbox** partially delivered (see limitations); **Phases 1–4** complete.
 
 Phase 0 (Specification) is complete and lives in the Forge specification workspace
 (mirrored conceptually in `docs/`).
+
+## Phase 5 — Sandbox
+
+| Build-order item (Phase 5) | Status | Notes |
+| --- | --- | --- |
+| Container lifecycle | ⛔ blocked | `DockerSandbox` seam exists and detects the daemon, but **no Docker daemon is available in this environment**, so the container backend cannot be provisioned or verified. It fails loudly (`SandboxUnavailable`) rather than faking isolation. |
+| Workspace isolation | ✅ | `LocalSandbox` over the Phase 4 path-jailed workspace; one workspace per project under `workspaces_root`. |
+| Snapshot/reset | ✅ | tar-based snapshot + restore, and clean reset — checkpoint/rollback for a run. |
+| Resource limits | 🟡 declared | `ResourceLimits` (cpu/memory/disk/pids/wall/network/browser) recorded for reproducibility; only wall-clock is enforced locally (per-command timeout). OS enforcement needs the container backend. |
+| Network policy | 🟡 partial | Deny-by-default egress is enforced at the tool layer (per-capability `allowed_hosts`, Phase 4). OS-level egress control is a container-backend concern. |
+| Secret broker | 🟡 deferred | Deferred with the container backend: injecting secrets into an *isolated* process is only meaningful once processes are isolated. The audit trail already guarantees secrets are never logged. |
+
+The tool runtime (Phase 4) now obtains its execution environment from a `SandboxProvider`,
+so tools run "inside a sandbox" abstraction. `SandboxProvider` selects the container backend
+when `FORGE_SANDBOX_BACKEND` requests it and a daemon is reachable, and otherwise falls back
+to `LocalSandbox` (ADR-0007). No schema change was needed this slice.
+
+**Known Phase 5 limitations / blocker:** the headline container isolation (plus OS-level
+resource/network enforcement, in-sandbox database/package-cache/browser services, and secret
+injection into isolated processes) is **blocked on a Docker daemon** and is therefore not
+delivered or verified here. This is an environment blocker for the Product Owner: provision a
+container runtime (or approve an alternative) to complete Phase 5. Everything that does not
+require a daemon — the lifecycle, `LocalSandbox`, snapshot/reset, the provider seam, and the
+tool-runtime integration — is implemented and tested.
 
 ## Phase 4 — Tool Runtime
 
@@ -111,21 +135,21 @@ projects, ADR-0002), **auditability** (atomic `AuditEvent` trail with correlatio
 
 ## Acceptance evidence
 
-- **Backend tests:** `cd backend && pytest` → **98 passed** (35 foundation + 20
-  durable-execution + 15 agent-runtime + 28 tool-runtime). The tool-runtime tests cover:
-  deny-by-default authorization, the filesystem jail (path-escape refusal), input/output
-  schema validation, the destructive-op approval gate (and `auto_approve` grants),
-  read/write SQLite tools, HTTP egress control (denied by default; allowed for an
-  allow-listed host, exercised against a local server), the terminal allow-list, offline
-  `git`, egress-gated package installs, honest failures for `search`/`browser`, argument
-  redaction + audit recording, and the agent↔tool least-privilege integration end-to-end.
+- **Backend tests:** `cd backend && pytest` → **107 passed** (35 foundation + 20
+  durable-execution + 15 agent-runtime + 28 tool-runtime + 9 sandbox). The sandbox tests
+  cover: provisioning a ready jailed environment, tar-based snapshot + reset (rollback),
+  clean reset, unknown-snapshot refusal, destroy, reproducibility metadata, resource-limit
+  defaults, the Docker backend reporting unavailable (and refusing) in this environment, and
+  the provider falling back to `LocalSandbox`.
 - **Lint:** `ruff check` → clean.
 - **Migrations:** `alembic upgrade head` and `alembic downgrade base` succeed across all
   four migrations on a fresh database (reversible).
 - **Frontend:** unchanged this phase; `npm run build` still type-checks and builds.
 - **End-to-end:** Phase 4 an agent (`example.fs_roundtrip`) drained by a standalone worker
   wrote and read a file through the tool runtime under least privilege, producing two
-  durable, audited `ToolInvocation` rows tied to the run/task/agent.
+  durable, audited `ToolInvocation` rows tied to the run/task/agent. Phase 5 a `LocalSandbox`
+  provisioned a jailed workspace, snapshotted it, mutated files, and rolled back to the
+  snapshot; the tool runtime now sources its environment from the `SandboxProvider`.
 
 ## Known limitations
 
@@ -142,11 +166,19 @@ projects, ADR-0002), **auditability** (atomic `AuditEvent` trail with correlatio
   …) render an explicit "Planned — Phase N" page rather than fake data.
 - **Rate limiting and idempotency keys** are specified (`22_API`) but not yet enforced;
   scaffolding for the error code exists.
+- **No container runtime in this environment.** The Docker daemon is unavailable, which
+  blocks the Phase 5 container sandbox (isolation, OS-level resource/network enforcement,
+  in-sandbox services) and the browser tool/QA (Phase 15). These are gated on a runtime being
+  provisioned. The **model runtime (Phases 10/13)** likewise gates the roster agent executors
+  and the research/engineering engines (Phases 6–9), which is why those phases are not built
+  against absent model infrastructure.
 
 ## Next phase
 
-**Phase 5 — Sandbox**: a container-backed `ExecutionEnvironment` implementing the Phase 4
-tool seam, with container lifecycle, resource limits, a real network policy, a secret
-broker, per-project workspace isolation, and snapshot/reset — so command-spawning tools
-(`terminal`/`git`/`package`) and richer database/browser targets run under full isolation
-rather than the local workspace environment.
+**Phase 5 completion is blocked on a Docker daemon** (Product-Owner decision: provision a
+container runtime or approve an alternative). Once available, `DockerSandbox` fills in the
+documented container lifecycle behind the existing `SandboxProvider` seam. The subsequent
+build-order phase is **Phase 6 — Engineering Engine**, which depends on the **model runtime
+(Phase 10)**; if the container runtime cannot be provisioned soon, the Product Owner may
+choose to reprioritize the model runtime so agent executors and the engineering/research
+engines become implementable.

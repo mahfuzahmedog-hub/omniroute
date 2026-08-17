@@ -66,7 +66,20 @@ class Settings(BaseSettings):
         default_factory=lambda: str(Path(tempfile.gettempdir()) / "forge-workspaces")
     )
 
+    # Sandbox backend selection (Phase 5): "auto" uses the container sandbox when a Docker
+    # daemon is reachable and falls back to the local workspace sandbox; "local"/"docker"
+    # force a specific backend.
+    sandbox_backend: str = "auto"
+
     _INSECURE_SECRET = "dev-only-insecure-secret-change-me"
+
+    @field_validator("sandbox_backend")
+    @classmethod
+    def _validate_sandbox_backend(cls, value: str) -> str:
+        allowed = {"auto", "local", "docker"}
+        if value not in allowed:
+            raise ValueError(f"sandbox_backend must be one of {sorted(allowed)}")
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod
