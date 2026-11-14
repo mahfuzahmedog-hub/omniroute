@@ -21,6 +21,12 @@ if not os.environ.get("FORGE_DATABASE_URL"):
     os.environ["FORGE_DATABASE_URL"] = f"sqlite+pysqlite:///{_DB_PATH}"
 os.environ.setdefault("FORGE_SECRET_KEY", "test-secret-key-not-used-in-production-abcdefgh")
 os.environ.setdefault("FORGE_ENVIRONMENT", "local")
+# Pin the sandbox backend for the suite. The tool-runtime and sandbox tests target the
+# local workspace sandbox, so backend *selection* must not depend on whether the host (or
+# a CI runner) happens to run a Docker daemon — otherwise the same tests pass or fail by
+# environment. The container backend is a daemon-gated seam and its selection is exercised
+# explicitly in tests/test_sandbox.py.
+os.environ.setdefault("FORGE_SANDBOX_BACKEND", "local")
 
 from fastapi.testclient import TestClient  # noqa: E402
 

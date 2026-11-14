@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -20,6 +21,9 @@ from forge.models.audit import AuditEvent
 from forge.models.project import Project
 from forge.models.run import Run
 from forge.models.task import Task, TaskDependency
+
+if TYPE_CHECKING:
+    from forge.tools.runtime import ToolRuntime
 
 _FAILURE_ACTIONS = ("task.retry", "task.dead_letter")
 
@@ -37,6 +41,8 @@ class AgentContext:
     # Outputs of the task's direct dependencies, keyed by the dependency task name.
     upstream_outputs: dict[str, dict]
     assembled: dict = field(default_factory=dict)
+    # The tool runtime, if any. Present when the agent runs on the durable queue.
+    tools: ToolRuntime | None = None
     tokens_used: int = 0
     cost_usd: float = 0.0
     _started_at: float = field(default_factory=time.perf_counter)
@@ -53,6 +59,26 @@ class AgentContext:
         if budget.max_usd is not None and self.cost_usd > budget.max_usd:
             raise BudgetExceeded(f"cost budget exceeded: ${self.cost_usd} > ${budget.max_usd}")
 
+    def call_tool(self, name: str, args: dict | None = None, *, approved: bool = False) -> dict:
+        """Invoke a tool on behalf of this agent.
+
+        The tool runtime enforces least privilege — the tool's capability must be in the
+        agent's ``allowed_tools`` *and* granted to the project — and records a durable,
+        audited invocation tied to this run/task/agent. Returns the tool's outputs.
+        """
+        if self.tools is None:
+            raise RuntimeError("no tool runtime is available in this agent context")
+        result = self.tools.invoke(
+            name,
+            args or {},
+            project=self.project,
+            run_id=self.run.id,
+            task_id=self.task.id,
+            agent=self.agent,
+            approved=approved,
+        )
+        return result.outputs
+
     @property
     def elapsed_seconds(self) -> float:
         return time.perf_counter() - self._started_at
@@ -67,7 +93,9 @@ def _upstream_outputs(db: Session, task: Task) -> dict[str, dict]:
     return {dep.name: (dep.outputs or {}) for dep in deps}
 
 
-def assemble_context(db: Session, agent: Agent, task: Task) -> AgentContext:
+def assemble_context(
+    db: Session, agent: Agent, task: Task, *, tool_runtime: ToolRuntime | None = None
+) -> AgentContext:
     """Build a focused :class:`AgentContext` for ``agent`` executing ``task``."""
     project = db.get(Project, task.project_id)
     run = db.get(Run, task.run_id)
@@ -99,4 +127,5 @@ def assemble_context(db: Session, agent: Agent, task: Task) -> AgentContext:
         inputs=task.inputs or {},
         upstream_outputs=upstream,
         assembled=assembled,
+        tools=tool_runtime,
     )

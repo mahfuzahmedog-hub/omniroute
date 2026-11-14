@@ -9,8 +9,9 @@ This repository (`omniroute`) is the implementation of Forge. It is built
 **specification-first**: the authoritative product and engineering specs live alongside
 the code in [`docs/`](docs/) and are mirrored from the Forge specification workspace.
 
-> **Status:** Phase 1 — Foundation. See [`docs/STATUS.md`](docs/STATUS.md) for the
-> current build phase, what is implemented, and the known limitations.
+> **Status:** Phase 5 — Sandbox (partial; container backend blocked on a Docker daemon).
+> See [`docs/STATUS.md`](docs/STATUS.md) for the current build phase, what is implemented,
+> and the known limitations.
 
 ---
 
@@ -19,7 +20,8 @@ the code in [`docs/`](docs/) and are mirrored from the Forge specification works
 ```
 omniroute/
 ├── backend/            FastAPI control-plane API + durable data model (Python 3.11)
-│   ├── forge/          Application package (config, db, models, api, core, services)
+│   ├── forge/          Application package (config, db, models, api, core, services,
+│   │                   orchestration, agents, tools, sandbox)
 │   ├── migrations/     Alembic versioned migrations
 │   └── tests/          pytest suite (executable contracts)
 ├── frontend/           React + TypeScript + Vite command-center UI shell
