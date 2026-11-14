@@ -21,7 +21,7 @@ from forge.core.deps import (
 )
 from forge.core.errors import ApiError
 from forge.core.pagination import Page, PageParams, page_params
-from forge.models.project import Project
+from forge.core.scoping import get_project_run, get_workspace_project
 from forge.models.run import Run, RunStatus
 from forge.models.task import Task
 from forge.orchestration import service
@@ -29,20 +29,6 @@ from forge.orchestration.state import InvalidTransition
 from forge.schemas.orchestration import RunCreate, RunOut, TaskCreate, TaskOut
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/projects/{project_id}", tags=["runs"])
-
-
-def _get_project(db: DbSession, workspace_id: uuid.UUID, project_id: uuid.UUID) -> Project:
-    project = db.get(Project, project_id)
-    if project is None or project.workspace_id != workspace_id:
-        raise ApiError.not_found("Project not found")
-    return project
-
-
-def _get_run(db: DbSession, project_id: uuid.UUID, run_id: uuid.UUID) -> Run:
-    run = db.get(Run, run_id)
-    if run is None or run.project_id != project_id:
-        raise ApiError.not_found("Run not found")
-    return run
 
 
 @router.post("/runs", response_model=RunOut, status_code=status.HTTP_201_CREATED)
@@ -55,7 +41,7 @@ def create_run(
 ) -> RunOut:
     membership = require_workspace_membership(workspace_id, db, user)
     require_workspace_write(membership)
-    _get_project(db, workspace_id, project_id)
+    get_workspace_project(db, workspace_id, project_id)
     run = service.create_run(
         db,
         project_id=project_id,
@@ -75,7 +61,7 @@ def list_runs(
     params: Annotated[PageParams, Depends(page_params)],
 ) -> Page[RunOut]:
     require_workspace_membership(workspace_id, db, user)
-    _get_project(db, workspace_id, project_id)
+    get_workspace_project(db, workspace_id, project_id)
 
     total = db.scalar(select(func.count(Run.id)).where(Run.project_id == project_id))
     runs = db.scalars(
@@ -102,8 +88,8 @@ def get_run(
     db: DbSession,
 ) -> RunOut:
     require_workspace_membership(workspace_id, db, user)
-    _get_project(db, workspace_id, project_id)
-    return RunOut.model_validate(_get_run(db, project_id, run_id))
+    get_workspace_project(db, workspace_id, project_id)
+    return RunOut.model_validate(get_project_run(db, project_id, run_id))
 
 
 @router.post("/runs/{run_id}/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
@@ -117,8 +103,8 @@ def add_task(
 ) -> TaskOut:
     membership = require_workspace_membership(workspace_id, db, user)
     require_workspace_write(membership)
-    _get_project(db, workspace_id, project_id)
-    run = _get_run(db, project_id, run_id)
+    get_workspace_project(db, workspace_id, project_id)
+    run = get_project_run(db, project_id, run_id)
     try:
         task = service.add_task(
             db,
@@ -146,8 +132,8 @@ def list_tasks(
     db: DbSession,
 ) -> list[TaskOut]:
     require_workspace_membership(workspace_id, db, user)
-    _get_project(db, workspace_id, project_id)
-    _get_run(db, project_id, run_id)
+    get_workspace_project(db, workspace_id, project_id)
+    get_project_run(db, project_id, run_id)
     tasks = db.scalars(
         select(Task).where(Task.run_id == run_id).order_by(Task.created_at.asc())
     ).all()
@@ -164,8 +150,8 @@ def start_run(
 ) -> RunOut:
     membership = require_workspace_membership(workspace_id, db, user)
     require_workspace_write(membership)
-    _get_project(db, workspace_id, project_id)
-    run = _get_run(db, project_id, run_id)
+    get_workspace_project(db, workspace_id, project_id)
+    run = get_project_run(db, project_id, run_id)
     if run.status != RunStatus.pending:
         raise ApiError.conflict("Run has already started")
     try:
@@ -185,7 +171,7 @@ def cancel_run(
 ) -> RunOut:
     membership = require_workspace_membership(workspace_id, db, user)
     require_workspace_write(membership)
-    _get_project(db, workspace_id, project_id)
-    run = _get_run(db, project_id, run_id)
+    get_workspace_project(db, workspace_id, project_id)
+    run = get_project_run(db, project_id, run_id)
     service.cancel_run(db, run, actor_user_id=user.id, workspace_id=workspace_id)
     return RunOut.model_validate(run)

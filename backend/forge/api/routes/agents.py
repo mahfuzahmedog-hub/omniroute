@@ -16,9 +16,8 @@ from forge.agents.contract import Agent
 from forge.agents.registry import registry as agent_registry
 from forge.core.deps import CurrentUser, DbSession, require_workspace_membership
 from forge.core.errors import ApiError
+from forge.core.scoping import get_project_run, get_workspace_project
 from forge.models.agent_execution import AgentExecution
-from forge.models.project import Project
-from forge.models.run import Run
 from forge.schemas.agents import AgentExecutionOut, AgentOut, BudgetOut
 
 catalog_router = APIRouter(prefix="/agents", tags=["agents"])
@@ -68,12 +67,8 @@ def list_agent_executions(
     db: DbSession,
 ) -> list[AgentExecutionOut]:
     require_workspace_membership(workspace_id, db, user)
-    project = db.get(Project, project_id)
-    if project is None or project.workspace_id != workspace_id:
-        raise ApiError.not_found("Project not found")
-    run = db.get(Run, run_id)
-    if run is None or run.project_id != project_id:
-        raise ApiError.not_found("Run not found")
+    get_workspace_project(db, workspace_id, project_id)
+    get_project_run(db, project_id, run_id)
     executions = db.scalars(
         select(AgentExecution)
         .where(AgentExecution.run_id == run_id)

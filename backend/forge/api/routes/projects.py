@@ -22,18 +22,12 @@ from forge.core.deps import (
 )
 from forge.core.errors import ApiError
 from forge.core.pagination import Page, PageParams, page_params
+from forge.core.scoping import get_workspace_project
 from forge.models.project import Project
 from forge.schemas.project import ProjectCreate, ProjectOut, ProjectUpdate
 from forge.services.audit import record_event
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/projects", tags=["projects"])
-
-
-def _get_owned_project(db: DbSession, workspace_id: uuid.UUID, project_id: uuid.UUID) -> Project:
-    project = db.get(Project, project_id)
-    if project is None or project.workspace_id != workspace_id:
-        raise ApiError.not_found("Project not found")
-    return project
 
 
 @router.get("", response_model=Page[ProjectOut])
@@ -106,7 +100,7 @@ def get_project(
     workspace_id: uuid.UUID, project_id: uuid.UUID, user: CurrentUser, db: DbSession
 ) -> ProjectOut:
     require_workspace_membership(workspace_id, db, user)
-    project = _get_owned_project(db, workspace_id, project_id)
+    project = get_workspace_project(db, workspace_id, project_id)
     return ProjectOut.model_validate(project)
 
 
@@ -121,7 +115,7 @@ def update_project(
     """Update a project. Optional ``expected_version`` guards against lost updates."""
     membership = require_workspace_membership(workspace_id, db, user)
     require_workspace_write(membership)
-    project = _get_owned_project(db, workspace_id, project_id)
+    project = get_workspace_project(db, workspace_id, project_id)
 
     if payload.expected_version is not None and payload.expected_version != project.version:
         raise ApiError.conflict(
@@ -169,7 +163,7 @@ def delete_project(
     """Delete a project. Requires a writer role in the workspace."""
     membership = require_workspace_membership(workspace_id, db, user)
     require_workspace_write(membership)
-    project = _get_owned_project(db, workspace_id, project_id)
+    project = get_workspace_project(db, workspace_id, project_id)
     db.delete(project)
     record_event(
         db,
