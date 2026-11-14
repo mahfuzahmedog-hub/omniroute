@@ -7,12 +7,21 @@ from pathlib import Path
 
 import pytest
 
+from forge.config import Settings
 from forge.sandbox.contract import ResourceLimits, SandboxError, SandboxStatus, SandboxUnavailable
 from forge.sandbox.docker import DockerSandbox
 from forge.sandbox.local import LocalSandbox
 from forge.sandbox.provider import SandboxProvider
 from forge.tools.contract import PathEscapesWorkspace
 from forge.tools.sandbox import EgressPolicy
+
+_daemon_available = DockerSandbox.available()
+requires_daemon = pytest.mark.skipif(
+    not _daemon_available, reason="requires a reachable Docker daemon"
+)
+requires_no_daemon = pytest.mark.skipif(
+    _daemon_available, reason="requires no Docker daemon (host has one)"
+)
 
 
 def _sandbox(tmp_path: Path) -> LocalSandbox:
@@ -91,16 +100,61 @@ def test_resource_limits_defaults() -> None:
 
 
 # --- backend selection ------------------------------------------------------
-def test_docker_backend_unavailable_here() -> None:
-    # No Docker daemon in this environment: the backend reports unavailable and refuses.
+# Selection depends on (a) the configured backend and (b) whether a Docker daemon is
+# reachable. We pin the backend with an explicit ``Settings`` so the config-driven paths
+# are deterministic on any host, and gate the daemon-dependent branches on a real probe
+# (``DockerSandbox.available()``) so they are skipped — not failed — where the daemon is
+# absent. This keeps coverage of both the "daemon present" and "daemon absent" paths
+# without either branch silently depending on the CI host.
+@requires_no_daemon
+def test_docker_backend_unavailable_without_daemon() -> None:
+    # No Docker daemon: the backend reports unavailable and refuses to construct.
     assert DockerSandbox.available() is False
     with pytest.raises(SandboxUnavailable):
         DockerSandbox(str(uuid.uuid4()))
 
 
-def test_provider_falls_back_to_local() -> None:
-    provider = SandboxProvider()
-    assert provider.use_container() is False  # auto + no daemon -> local
+@requires_daemon
+def test_docker_backend_available_but_lifecycle_not_wired() -> None:
+    # With a daemon present, ``available()`` is honest and the backend constructs, but the
+    # container lifecycle is still an unimplemented seam: using it fails loudly rather than
+    # faking isolation.
+    assert DockerSandbox.available() is True
+    sandbox = DockerSandbox(str(uuid.uuid4()))
+    assert sandbox.status == SandboxStatus.created
+    with pytest.raises(SandboxUnavailable):
+        sandbox.provision()
+    with pytest.raises(SandboxUnavailable):
+        _ = sandbox.environment
+
+
+def test_provider_auto_selects_local_without_daemon() -> None:
+    # Explicit config pins the backend so this is deterministic regardless of host Docker.
+    provider = SandboxProvider(Settings(sandbox_backend="local"))
+    assert provider.use_container() is False
     sandbox = provider.get(uuid.uuid4())
     assert isinstance(sandbox, LocalSandbox)
     assert sandbox.status == SandboxStatus.ready
+
+
+def test_provider_docker_backend_opts_in() -> None:
+    # ``docker`` forces the container backend regardless of daemon reachability.
+    provider = SandboxProvider(Settings(sandbox_backend="docker"))
+    assert provider.use_container() is True
+
+
+@requires_no_daemon
+def test_provider_auto_falls_back_without_daemon() -> None:
+    # "auto" with no daemon reachable -> the local workspace sandbox.
+    provider = SandboxProvider(Settings(sandbox_backend="auto"))
+    assert provider.use_container() is False
+    sandbox = provider.get(uuid.uuid4())
+    assert isinstance(sandbox, LocalSandbox)
+    assert sandbox.status == SandboxStatus.ready
+
+
+@requires_daemon
+def test_provider_auto_prefers_container_with_daemon() -> None:
+    # "auto" with a reachable daemon -> the container backend is selected.
+    provider = SandboxProvider(Settings(sandbox_backend="auto"))
+    assert provider.use_container() is True
