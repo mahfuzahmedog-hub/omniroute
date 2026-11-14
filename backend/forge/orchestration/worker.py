@@ -74,11 +74,8 @@ class HandlerRegistry:
     def get(self, kind: str) -> Handler | None:
         return self._handlers.get(kind)
 
-    def kinds(self) -> list[str]:
-        return sorted(self._handlers)
 
-
-# A process-wide default registry with a couple of built-in handlers.
+# A process-wide default registry with a built-in handler.
 registry = HandlerRegistry()
 
 
@@ -86,12 +83,6 @@ registry = HandlerRegistry()
 def _noop_handler(_ctx: TaskContext) -> dict:
     """A task that does nothing successfully — useful as a graph join point."""
     return {}
-
-
-@registry.register("echo")
-def _echo_handler(ctx: TaskContext) -> dict:
-    """Return the task inputs as outputs."""
-    return {"echo": ctx.inputs}
 
 
 class Worker:

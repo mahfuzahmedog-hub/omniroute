@@ -40,7 +40,3 @@ class Page(BaseModel, Generic[T]):
     total: int
     limit: int
     offset: int
-
-    @property
-    def has_more(self) -> bool:
-        return self.offset + len(self.items) < self.total

@@ -70,7 +70,6 @@ class Agent:
     # Which class of model the router should pick (populated by the model runtime later).
     model_policy: dict = field(default_factory=dict)
     budget: AgentBudget = field(default_factory=AgentBudget)
-    timeout_seconds: float | None = None
     max_attempts: int = 3
     escalation_target: str | None = None
     # A spec-only agent has execute=None: its contract is declared but it cannot run yet.

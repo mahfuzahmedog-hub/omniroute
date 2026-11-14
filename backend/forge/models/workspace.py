@@ -34,10 +34,6 @@ class WorkspaceRole(enum.StrEnum):
         """Whether this role may create or mutate resources in the workspace."""
         return self in (WorkspaceRole.owner, WorkspaceRole.admin, WorkspaceRole.member)
 
-    def can_administer(self) -> bool:
-        """Whether this role may manage members and workspace settings."""
-        return self in (WorkspaceRole.owner, WorkspaceRole.admin)
-
 
 class Workspace(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "workspaces"

@@ -21,7 +21,7 @@ from forge.core.errors import ApiError
 from forge.core.security import decode_access_token
 from forge.db import SessionLocal
 from forge.models.user import User
-from forge.models.workspace import WorkspaceMembership, WorkspaceRole
+from forge.models.workspace import WorkspaceMembership
 
 _oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl=f"{get_settings().api_v1_prefix}/auth/login",
@@ -90,11 +90,6 @@ def require_workspace_write(membership: WorkspaceMembership) -> None:
         raise ApiError.forbidden("This role cannot modify workspace resources")
 
 
-def require_workspace_admin(membership: WorkspaceMembership) -> None:
-    if not membership.role.can_administer():
-        raise ApiError.forbidden("This role cannot administer the workspace")
-
-
 __all__ = [
     "get_db",
     "DbSession",
@@ -102,6 +97,4 @@ __all__ = [
     "CurrentUser",
     "require_workspace_membership",
     "require_workspace_write",
-    "require_workspace_admin",
-    "WorkspaceRole",
 ]
