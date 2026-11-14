@@ -52,7 +52,6 @@ class ApiError(Exception):
         self.status_code = status_code
         self.details = details
 
-    # Convenience constructors for the common cases keep call sites terse and consistent.
     @classmethod
     def not_found(cls, message: str = "Resource not found", **kw) -> ApiError:
         return cls(ErrorCode.not_found, message, status_code=status.HTTP_404_NOT_FOUND, **kw)

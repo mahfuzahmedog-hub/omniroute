@@ -34,7 +34,6 @@ class AgentContext:
     run: Run
     task: Task
     inputs: dict
-    # Outputs of the task's direct dependencies, keyed by the dependency task name.
     upstream_outputs: dict[str, dict]
     assembled: dict = field(default_factory=dict)
     tokens_used: int = 0

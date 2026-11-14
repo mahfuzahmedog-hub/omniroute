@@ -21,7 +21,6 @@ export default function App() {
     return <Login />;
   }
 
-  // Areas whose subsystems are not built yet render an honest placeholder page.
   const placeholderAreas = NAV_AREAS.filter((area) => !area.implemented);
 
   return (

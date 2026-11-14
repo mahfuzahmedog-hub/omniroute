@@ -22,7 +22,6 @@ class InvalidTransition(Exception):
         self.target = target
 
 
-# Allowed task transitions. Terminal states have no outgoing edges.
 _TASK_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
     TaskStatus.pending: {TaskStatus.ready, TaskStatus.cancelled},
     TaskStatus.ready: {TaskStatus.running, TaskStatus.cancelled},
@@ -39,7 +38,6 @@ _TASK_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
     TaskStatus.dead_letter: set(),
 }
 
-# Allowed run transitions.
 _RUN_TRANSITIONS: dict[RunStatus, set[RunStatus]] = {
     RunStatus.pending: {RunStatus.running, RunStatus.cancelled},
     RunStatus.running: {RunStatus.succeeded, RunStatus.failed, RunStatus.cancelled},

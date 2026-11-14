@@ -21,10 +21,8 @@ from forge.models.base import Base, TimestampMixin, UUIDMixin
 class AuditEvent(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "audit_events"
 
-    # Correlation ID linking this event to the originating request/run/task chain.
     correlation_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
 
-    # Who/what caused the change. Nullable for unauthenticated/system events.
     actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
         GUID(), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -33,7 +31,6 @@ class AuditEvent(Base, UUIDMixin, TimestampMixin):
     # Dotted action verb, e.g. "project.created", "auth.login".
     action: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
 
-    # The affected resource, as a type + id pair for cheap filtering.
     resource_type: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     resource_id: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
 

@@ -48,7 +48,6 @@ def build_agent_handler(agent: Agent):
             execution.finished_at = utcnow()
             db.commit()
 
-        # Least-privilege + runnability + input validation, each recorded on the attempt.
         if not agent.runnable:
             _fail("Agent has no executor yet (model runtime pending)")
             raise AgentNotRunnable(agent.key)

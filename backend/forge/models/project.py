@@ -42,7 +42,6 @@ class Project(Base, UUIDMixin, TimestampMixin, VersionedMixin):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    # The natural-language goal/specification the user gave Forge.
     specification: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[ProjectStatus] = mapped_column(
         Enum(ProjectStatus, native_enum=False, length=32),

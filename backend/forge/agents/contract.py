@@ -72,7 +72,6 @@ class Agent:
     budget: AgentBudget = field(default_factory=AgentBudget)
     max_attempts: int = 3
     escalation_target: str | None = None
-    # A spec-only agent has execute=None: its contract is declared but it cannot run yet.
     execute: Executor | None = None
     verify: Verifier | None = None
 

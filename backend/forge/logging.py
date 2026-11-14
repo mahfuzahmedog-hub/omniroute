@@ -30,7 +30,6 @@ class JsonFormatter(logging.Formatter):
         correlation_id = correlation_id_var.get()
         if correlation_id:
             payload["correlation_id"] = correlation_id
-        # Attach any structured extras passed via logger.info(..., extra={"extra": {...}}).
         extra = getattr(record, "extra", None)
         if isinstance(extra, dict):
             payload.update(extra)

@@ -19,7 +19,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // On mount (or when the token changes) resolve the current user, clearing a stale token.
   useEffect(() => {
     let cancelled = false;
     async function resolve() {

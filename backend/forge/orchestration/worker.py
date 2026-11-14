@@ -75,7 +75,7 @@ class HandlerRegistry:
         return self._handlers.get(kind)
 
 
-# A process-wide default registry with a built-in handler.
+# A process-wide default registry holding the built-in handlers.
 registry = HandlerRegistry()
 
 
@@ -154,7 +154,6 @@ def run_forever(session_factory: Callable[[], Session]) -> None:  # pragma: no c
     """Entrypoint for a standalone worker process."""
     import time
 
-    # Wire runnable agents (Phase 3) in as task kinds on the default registry.
     from forge.agents.runner import register_agents
 
     register_agents()

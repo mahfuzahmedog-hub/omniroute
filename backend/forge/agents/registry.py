@@ -35,8 +35,8 @@ class AgentRegistry:
         return sorted(k for k, a in self._agents.items() if a.runnable)
 
 
-# The initial roster: role + objective + least-privilege tools + model class.
-# execute=None → declared contract, not yet runnable (awaits the model runtime).
+# The initial roster as (key, role, objective, least-privilege tools, model class);
+# these declare their contract only and await the model runtime for executors.
 _ROSTER: list[tuple[str, str, str, frozenset[str], str]] = [
     ("commander", "Commander",
      "Own the project run end-to-end and delegate to specialists.",
