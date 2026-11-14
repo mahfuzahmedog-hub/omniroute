@@ -31,6 +31,11 @@ DEFAULT_MAX_ATTEMPTS = 3
 _BACKOFF_BASE_SECONDS = 2
 _BACKOFF_CAP_SECONDS = 300
 
+# Audit actions that signal a task failure. Context assembly reads these back to surface
+# recent failure signals, so the strings are defined once here rather than in both places.
+TASK_RETRY_ACTION = "task.retry"
+TASK_DEAD_LETTER_ACTION = "task.dead_letter"
+
 
 def retry_backoff_seconds(attempts: int, *, base: int = _BACKOFF_BASE_SECONDS) -> int:
     """Exponential backoff (capped) for the ``attempts``-th failed try."""
@@ -340,7 +345,7 @@ def complete_task(
         task.lease_owner = None
         task.lease_expires_at = None
         task.available_at = now + timedelta(seconds=retry_backoff_seconds(task.attempts))
-        _record_task_event(db, task, "task.retry", {"attempt": task.attempts})
+        _record_task_event(db, task, TASK_RETRY_ACTION, {"attempt": task.attempts})
     else:
         # Retries exhausted: send to the dead-letter state for human/escalation review.
         _set_task_status(task, TaskStatus.dead_letter)
@@ -348,7 +353,7 @@ def complete_task(
         task.finished_at = now
         task.lease_owner = None
         task.lease_expires_at = None
-        _record_task_event(db, task, "task.dead_letter", {"attempts": task.attempts})
+        _record_task_event(db, task, TASK_DEAD_LETTER_ACTION, {"attempts": task.attempts})
 
     if run is not None:
         promote_ready(db, run)

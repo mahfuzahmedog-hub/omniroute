@@ -20,8 +20,9 @@ from forge.models.audit import AuditEvent
 from forge.models.project import Project
 from forge.models.run import Run
 from forge.models.task import Task, TaskDependency
+from forge.orchestration.service import TASK_DEAD_LETTER_ACTION, TASK_RETRY_ACTION
 
-_FAILURE_ACTIONS = ("task.retry", "task.dead_letter")
+_FAILURE_ACTIONS = (TASK_RETRY_ACTION, TASK_DEAD_LETTER_ACTION)
 
 
 @dataclass
